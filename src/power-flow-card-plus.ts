@@ -528,7 +528,7 @@ export class PowerFlowCardPlus extends LitElement {
       batteryToGrid = Math.max(batteryToGrid, 0);
     }
   
-    const gridConsumption = totalHomeConsumption - solarConsumption - batteryConsumption;
+    const gridConsumption = totalHomeConsumption - (solarConsumption ?? 0) - batteryConsumption;
 
     let batteryConsumptionColor = this._config.entities.battery?.color?.consumption;
     if (batteryConsumptionColor !== undefined) {
