@@ -505,44 +505,30 @@ export class PowerFlowCardPlus extends LitElement {
       }
     }
 
-    let solarConsumption: number | null = null;
+    const totalHomeConsumption = ((totalBatteryOut ?? 0) - (totalBatteryIn ?? 0)) + ((totalFromGrid ?? 0) - (totalToGrid ?? 0)) + totalSolarProduction;
+  
+    let solarToBattery: null | number = null;
+    let solarConsumption: null | number = null;
+    let solarToGrid = 0;
+  
     if (hasSolarProduction) {
-      solarConsumption = totalSolarProduction - (totalToGrid ?? 0) - (totalBatteryIn ?? 0);
+      solarToBattery = Math.min(Math.max(0, totalBatteryIn ?? 0), totalSolarProduction);
+      solarConsumption = Math.min(totalSolarProduction - solarToBattery, totalHomeConsumption);
+      solarToGrid = totalSolarProduction - solarConsumption - solarToBattery;
     }
-
+  
     let batteryFromGrid: null | number = null;
     let batteryToGrid: null | number = null;
-    if (solarConsumption !== null && solarConsumption < 0) {
-      // What we returned to the grid and what went in to the battery is more
-      // than produced, so we have used grid energy to fill the battery or
-      // returned battery energy to the grid
-      if (hasBattery) {
-        batteryFromGrid = Math.abs(solarConsumption);
-        if (batteryFromGrid > totalFromGrid) {
-          batteryToGrid = Math.min(batteryFromGrid - totalFromGrid, 0);
-          batteryFromGrid = totalFromGrid;
-        }
-      }
-      solarConsumption = 0;
-    }
-
-    let solarToBattery: null | number = null;
-    if (hasSolarProduction && hasBattery) {
-      if (!batteryToGrid) {
-        batteryToGrid = Math.max(0, (totalToGrid || 0) - (totalSolarProduction || 0) - (totalBatteryIn || 0) - (batteryFromGrid || 0));
-      }
-      solarToBattery = totalBatteryIn! - (batteryFromGrid || 0);
-    } else if (!hasSolarProduction && hasBattery) {
-      batteryToGrid = totalToGrid;
-    }
-
-    let solarToGrid = 0;
-    if (hasSolarProduction && totalToGrid) solarToGrid = totalToGrid - (batteryToGrid ?? 0);
-
     let batteryConsumption: number = 0;
+  
     if (hasBattery) {
-      batteryConsumption = (totalBatteryOut ?? 0) - (batteryToGrid ?? 0);
+      batteryConsumption = Math.min(totalBatteryOut!, totalHomeConsumption - (solarConsumption ?? 0));
+      batteryToGrid = totalBatteryOut! + (solarToBattery ?? 0) - batteryConsumption;
+      batteryFromGrid = Math.max(-batteryToGrid, 0);
+      batteryToGrid = Math.max(batteryToGrid, 0);
     }
+  
+    const gridConsumption = totalHomeConsumption - solarConsumption - batteryConsumption;
 
     let batteryConsumptionColor = this._config.entities.battery?.color?.consumption;
     if (batteryConsumptionColor !== undefined) {
@@ -605,11 +591,7 @@ export class PowerFlowCardPlus extends LitElement {
         : "var(--energy-battery-in-color)"
     );
 
-    const gridConsumption = Math.max(totalFromGrid - (batteryFromGrid ?? 0), 0);
-
     const totalIndividualConsumption = coerceNumber(individual1Usage, 0) + coerceNumber(individual2Usage, 0);
-
-    const totalHomeConsumption = Math.max(gridConsumption + (solarConsumption ?? 0) + (batteryConsumption ?? 0), 0);
 
     let homeBatteryCircumference: number = 0;
     if (batteryConsumption) homeBatteryCircumference = circleCircumference * (batteryConsumption / totalHomeConsumption);
